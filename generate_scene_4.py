@@ -113,34 +113,30 @@ def build_scene(json_path, use_edited, target_style=None):
         scale = e.get("scale", [1,1,1])
         # quat  = e.get("rotation_quaternion", [1,0,0,0])  # [w,x,y,z]
 
-        # --- ▼▼▼ 로직 변경 ▼▼▼ ---
-        # 쿼터니언 대신, JSON에 새로 추가한 오일러 각(Degree)을 읽어옵니다.
+        # JSON에 새로 추가한 오일러 각(Degree)
         euler_deg = e.get("rotation_euler_deg", [ 0.0, 0.0, 0.0 ])
         rx_deg, ry_deg, rz_deg = euler_deg
 
-        # '도(Degree)' 단위를 '라디안(Radian)' 단위로 변환합니다.
+        # '도(Degree)' 단위를 '라디안(Radian)' 단위로 변환
         rx_rad = np.radians(rx_deg)
         ry_rad = np.radians(ry_deg)
         rz_rad = np.radians(rz_deg)
 
-        # 쿼터니언 행렬 대신 오일러 회전 행렬을 생성합니다.
-        # 'sxyz'는 Blender의 기본 오일러 회전 순서(XYZ Static)입니다.
+        # 쿼터니언 행렬 대신 오일러 회전 행렬을 생성
+        # 'sxyz'는 Blender의 기본 오일러 회전 순서(XYZ Static)
         R_matrix = trimesh.transformations.euler_matrix(rx_rad, ry_rad, rz_rad, axes='sxyz')
         
         # T, S 행렬 생성 (make_TRS 함수의 일부를 가져옴)
         T_matrix = trimesh.transformations.translation_matrix(loc)
-        # --- ▼▼▼ 스케일 행렬 수정 ▼▼▼ ---
-        # scale_matrix 함수 대신, 이전 make_TRS 함수처럼 수동으로 대각 행렬을 만듭니다.
+        # scale_matrix 함수 대신, 이전 make_TRS 함수처럼 수동으로 대각 행렬을 만듬듬
         S_matrix = np.eye(4, dtype=np.float64)
         sx, sy, sz = np.asarray(scale, dtype=np.float64)
         S_matrix[0, 0] = sx
         S_matrix[1, 1] = sy
         S_matrix[2, 2] = sz
-        # --- ▲▲▲ 수정 완료 ▲▲▲ ---
-        
-        # M_blender = make_TRS(loc, quat, scale)  <- 이 줄을 아래 3줄로 대체
+
         M_blender = T_matrix @ R_matrix @ S_matrix
-        # --- ▲▲▲ 로직 변경 완료 ▲▲▲ ---
+
 
         
 

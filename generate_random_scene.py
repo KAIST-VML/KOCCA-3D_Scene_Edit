@@ -5,7 +5,8 @@ import numpy as np
 import trimesh
 from trimesh.transformations import rotation_matrix
 import random
-import re # --- 객체 이름에서 숫자를 제거하기 위해 re 라이브러리 import
+import re 
+import argparse 
 
 # ===== 경로 및 전역 설정 =====
 JSON_PATH = "/source/sola/Kocca_3Dedit/scene_data/scene1/scene_object_transforms2.json"
@@ -16,10 +17,6 @@ OUT_SCENE_DIR = "/source/sola/Kocca_3Dedit/scene_data/scene1"
 FIX_ZUP_TO_YUP = rotation_matrix(np.radians(-90.0), [1, 0, 0])
 
 
-# ---------- 유틸리티 함수 (이전과 거의 동일) ----------
-
-# (quat2mat, make_TRS, create_floor_plane_TRS, load_mesh_simple 함수는 이전과 동일하게 필요합니다)
-# ... 이전 코드의 유틸리티 함수들을 여기에 붙여넣으세요 ...
 def quat2mat(q):
     q = np.asarray(q, dtype=np.float64)
     n = np.linalg.norm(q)
@@ -70,7 +67,6 @@ def find_random_mesh_path(base_name: str, theme: str, base_dir: str, use_edited:
     return mesh_path if os.path.exists(mesh_path) else None
 
 
-# ---------- ★★★ 새로운 메인 생성 함수 ★★★ ----------
 
 def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_edited: bool, base_dir: str):
     """
@@ -94,13 +90,12 @@ def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_ed
             print(f"✅ 바닥 평면 생성: {name}")
             continue
 
-        # 1. JSON에서 위치, 회전, 크기 값을 그대로 가져옴 (랜덤 생성 X)
         loc = e.get("location", [0, 0, 0])
         scale = e.get("scale", [1, 1, 1])
         euler_deg = e.get("rotation_euler_deg", [0, 0, 0])
         
-        # 2. 메쉬 스왑: JSON의 이름(예: "bed_1")에서 베이스 이름("bed")을 추출
-        # 정규 표현식을 사용하여 이름 뒤의 숫자와 밑줄을 제거합니다.
+        # 메쉬 스왑: JSON의 이름(예: "bed_1")에서 베이스 이름("bed")을 추출
+        # 정규 표현식을 사용하여 이름 뒤의 숫자와 밑줄을 제거
         base_name = re.sub(r'_\d+$', '', name)
         
         mesh_path = find_random_mesh_path(base_name, theme, base_dir, use_edited)
@@ -114,7 +109,7 @@ def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_ed
         if mesh is None or mesh.is_empty:
             continue
             
-        # 3. 매트릭스 생성 (수정한 오일러 각도 로직 사용)
+        # 매트릭스 생성 (수정한 오일러 각도 로직 사용)
         rx, ry, rz = np.radians(euler_deg)
         R_matrix = trimesh.transformations.euler_matrix(rx, ry, rz, axes='sxyz')
         T_matrix = trimesh.transformations.translation_matrix(loc)
@@ -123,7 +118,7 @@ def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_ed
         M_blender = T_matrix @ R_matrix @ S_matrix
         M_final = FIX_ZUP_TO_YUP @ M_blender
 
-        # 4. 씬에 추가
+        # 씬에 추가
         scene.add_geometry(mesh, transform = M_final, node_name=name)
 
     print("--- 씬 생성 완료 ---")
@@ -131,8 +126,12 @@ def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_ed
 
 # ---------- 메인 실행 부분 ----------
 if __name__ == "__main__":
-    
-    TARGET_THEME = "art_deco"  # <--- 여기서 원하는 테마를 설정하세요
+
+    parser = argparse.ArgumentParser(description="지정된 테마로 랜덤 3D 씬을 생성합니다.")
+    parser.add_argument("theme", help="가구에 적용할 테마 이름 (예: art_deco, modern)")
+    args = parser.parse_args()
+
+    TARGET_THEME = args.theme     
     USE_EDITED_MESHES = True
 
     # JSON 파일의 좌표를 그대로 사용하되, 가구만 바꾸는 새 씬 생성
