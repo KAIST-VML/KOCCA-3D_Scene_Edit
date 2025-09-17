@@ -20,7 +20,7 @@ OUTPUT_DIR = 'outputs_batch'
 NUM_OBJECTS_TO_PROCESS = 30 # 몇개의 객체? 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-START_INDEX = 0  # 시작할 객체 번호
+START_INDEX = 1  # 시작할 객체 번호
 END_INDEX = 60    # 종료할 객체 번호 (이 번호까지 포함)
 
 class ModelManager:

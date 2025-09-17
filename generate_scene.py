@@ -9,8 +9,8 @@ from trimesh.transformations import rotation_matrix
 JSON_PATH    = "/source/sola/Kocca_3Dedit/scene_data/scene1/scene_object_transforms2.json"
 BASE_DIR     = "/source/sola/Kocca_3Dedit/outputs_batch"
 OUT_ORI      = "/source/sola/Kocca_3Dedit/scene_data/scene1/original_scene_loc.glb"
-TARGET_STYLE = "art_deco"
-OUT_EDITED   = f"/source/sola/Kocca_3Dedit/scene_data/scene1/edited_scene_{TARGET_STYLE}_loc.glb"
+# TARGET_STYLE = "art_deco"
+# OUT_EDITED   = f"/source/sola/Kocca_3Dedit/scene_data/scene1/edited_scene_{TARGET_STYLE}_loc.glb"
 
 # Blender(Z-up) → Y-up 회전 (동차 4x4)
 FIX_ZUP_TO_YUP = rotation_matrix(np.radians(-90.0), [1, 0, 0])
@@ -167,14 +167,26 @@ def build_scene(json_path, use_edited, target_style=None):
     return scene
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Scene generator with target style")
+    parser.add_argument(
+        "--style",
+        type=str,
+        default=None,
+        help="Target style for edited scene (예: art_deco, steampunk, ghibli 등)"
+    )
+    args = parser.parse_args()
+
+    target_style = args.style
+    OUT_EDITED = f"/source/sola/Kocca_3Dedit/scene_data/scene1/edited_scene_{target_style or 'default'}.glb"
+
     original_scene = build_scene(JSON_PATH, use_edited=False, target_style=None)
     if len(original_scene.geometry) == 0:
         raise ValueError("Original scene is empty.")
     original_scene.export(OUT_ORI)
     print(f"✅ Exported original scene → {OUT_ORI}")
 
-    edited_scene = build_scene(JSON_PATH, use_edited=True, target_style=TARGET_STYLE)
+    edited_scene = build_scene(JSON_PATH, use_edited=True, target_style)
     if len(edited_scene.geometry) == 0:
         raise ValueError("Edited scene is empty.")
     edited_scene.export(OUT_EDITED)
-    print(f"✅ Exported edited scene ({TARGET_STYLE}) → {OUT_EDITED}")
+    print(f"✅ Exported edited scene ({target_style}) → {OUT_EDITED}")

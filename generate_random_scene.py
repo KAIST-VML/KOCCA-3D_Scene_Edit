@@ -127,9 +127,18 @@ def build_scene_from_json_with_swapped_meshes(json_path: str, theme: str, use_ed
 # ---------- 메인 실행 부분 ----------
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="지정된 테마로 랜덤 3D 씬을 생성합니다.")
-    parser.add_argument("theme", help="가구에 적용할 테마 이름 (예: art_deco, modern)")
+
+    parser = argparse.ArgumentParser(description="Scene generator with target style")
+    parser.add_argument(
+        "--style",
+        type=str,
+        default=None,
+        help="Target style for edited scene (예: art_deco, steampunk, ghibli 등)"
+    )
     args = parser.parse_args()
+
+    target_style = args.style
+    OUT_EDITED = f"/source/sola/Kocca_3Dedit/scene_data/scene1/edited_scene_{target_style or 'default'}_random.glb"
 
     TARGET_THEME = args.theme     
     USE_EDITED_MESHES = True
@@ -145,8 +154,7 @@ if __name__ == "__main__":
     if len(new_scene.geometry) == 0:
         raise ValueError("씬이 비어있습니다. JSON 경로 또는 메쉬 파일 경로를 확인하세요.")
     else:
-        output_filename = f"swapped_scene_{TARGET_THEME}.glb"
-        output_path = os.path.join(OUT_SCENE_DIR, output_filename)
+        OUT_EDITED = f"/source/sola/Kocca_3Dedit/scene_data/scene1/edited_scene_{target_style or 'default'}_random.glb"
         
         new_scene.export(output_path)
         print(f"✅ 가구가 교체된 새로운 씬 저장 완료 → {output_path}")
