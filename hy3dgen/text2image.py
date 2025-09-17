@@ -30,8 +30,8 @@ def seed_everything(seed):
 class HunyuanDiTPipeline:
     def __init__(
         self,
-        model_path="Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled", #사전 학습된 모델
-        device='cuda' # gpu 사용
+        model_path="Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
+        device='cuda'
     ):
         self.device = device
         self.pipe = AutoPipelineForText2Image.from_pretrained(
@@ -40,13 +40,11 @@ class HunyuanDiTPipeline:
             enable_pag=True,
             pag_applied_layers=["blocks.(16|17|18|19)"]
         ).to(device)
-        self.pos_txt = ", white background, 3D style, best quality"
-        self.neg_txt = "text, close-up, cropped, out-of-frame, worst quality, low quality, JPEG artifacts, "\
-                        "PGLY, duplicate, grotesque, deformed, incomplete, extra fingers, mutated hands, "\
-                        "poorly drawn hands, poorly drawn face, mutation, distortion, blurry, dehydrated, "\
-                        "bad anatomy, bad proportions, extra limbs, cloned face, disfigured, ugly proportions, "\
-                        "malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, "\
-                        "too many fingers, long neck"
+        self.pos_txt = ",白色背景,3D风格,最佳质量"
+        self.neg_txt = "文本,特写,裁剪,出框,最差质量,低质量,JPEG伪影,PGLY,重复,病态," \
+                       "残缺,多余的手指,变异的手,画得不好的手,画得不好的脸,变异,畸形,模糊,脱水,糟糕的解剖学," \
+                       "糟糕的比例,多余的肢体,克隆的脸,毁容,恶心的比例,畸形的肢体,缺失的手臂,缺失的腿," \
+                       "额外的手臂,额外的腿,融合的手指,手指太多,长脖子"
 
     def compile(self):
         # accelarate hunyuan-dit transformer,first inference will cost long time
@@ -55,8 +53,8 @@ class HunyuanDiTPipeline:
         # self.pipe.vae.decode = torch.compile(self.pipe.vae.decode, fullgraph=True)
         generator = torch.Generator(device=self.pipe.device)  # infer once for hot-start
         out_img = self.pipe(
-            prompt="anime girl with futuristic armor",
-            negative_prompt='blurry',
+            prompt='美少女战士',
+            negative_prompt='模糊',
             num_inference_steps=25,
             pag_scale=1.3,
             width=1024,
@@ -71,7 +69,7 @@ class HunyuanDiTPipeline:
         generator = torch.Generator(device=self.pipe.device)
         generator = generator.manual_seed(int(seed))
         out_img = self.pipe(
-            prompt=prompt[:60] + self.pos_txt, # 텍스트 생성 품질을 높이기 위해 긍정 프롬프트와 부정 프롬프트 세팅
+            prompt=prompt[:60] + self.pos_txt,
             negative_prompt=self.neg_txt,
             num_inference_steps=25,
             pag_scale=1.3,

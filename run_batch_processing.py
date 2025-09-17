@@ -11,6 +11,8 @@ from transformers import CLIPProcessor, CLIPModel, BlipProcessor, BlipForConditi
 from diffusers import StableDiffusionXLControlNetPipeline, ControlNetModel
 from hy3dgen.texgen import Hunyuan3DPaintPipeline
 from hy3dgen.text2image import HunyuanDiTPipeline
+from evaluate_clip_ds import ModelManager as ClipModelManager, evaluate_clip_similarity
+
 
 
 SOURCE_DATA_DIR = '/source/sola/dataset/3D-FUTURE-model-part1'
@@ -18,7 +20,7 @@ OUTPUT_DIR = 'outputs_batch'
 NUM_OBJECTS_TO_PROCESS = 30 # 몇개의 객체? 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-START_INDEX = 31  # 시작할 객체 번호
+START_INDEX = 0  # 시작할 객체 번호
 END_INDEX = 60    # 종료할 객체 번호 (이 번호까지 포함)
 
 class ModelManager:
@@ -50,14 +52,6 @@ class ModelManager:
             self.models['hunyuan'] = pipe
         return self.models['hunyuan']
 
-    def get_clip_model(self):
-        if 'clip' not in self.models:
-            print("Loading CLIP model for evaluation...")
-            model_id = "openai/clip-vit-large-patch14"
-            model = CLIPModel.from_pretrained(model_id).to(DEVICE)
-            processor = CLIPProcessor.from_pretrained(model_id)
-            self.models['clip'] = (model, processor)
-        return self.models['clip']
 
 
 
@@ -96,44 +90,6 @@ def texture_mesh(model_manager, mesh_path, ref_image_path, output_path):
     textured_mesh = pipe(mesh=input_mesh, image=ref_image)
     textured_mesh.export(output_path)
     return output_path
-
-def evaluate_clip_similarity(model_manager, original_mesh_path, edited_mesh_path, original_text, edited_text):
-    """단일 정면 뷰를 기준으로 CLIP Directional Similarity를 계산"""
-    clip_model, clip_processor = model_manager.get_clip_model()
-    
-    def get_embedding(text=None, image=None):
-        if text:
-            inputs = clip_processor(text=text, return_tensors="pt").to(DEVICE)
-            return clip_model.get_text_features(**inputs)
-        elif image:
-            inputs = clip_processor(images=image, return_tensors="pt").to(DEVICE)
-            return clip_model.get_image_features(**inputs)
-        return None
-
-    def render_front_view(mesh_path):
-        mesh = trimesh.load_mesh(mesh_path, force='mesh')
-        scene = trimesh.Scene(mesh)
-        camera_transform = np.array([[1,0,0,0],[0,1,0,0],[0,0,1,3],[0,0,0,1]])
-        scene.camera_transform = camera_transform
-        data = scene.save_image(resolution=(224, 224))
-        return Image.open(trimesh.util.wrap_as_stream(data))
-
-    original_render_img = render_front_view(original_mesh_path)
-    edited_render_img = render_front_view(edited_mesh_path)
-    
-    with torch.no_grad():
-        t_clip = get_embedding(text=original_text)
-        t_hat_clip = get_embedding(text=edited_text)
-        x_clip = get_embedding(image=original_render_img)
-        x_hat_clip = get_embedding(image=edited_render_img)
-
-        delta_text = t_clip - t_hat_clip
-        delta_image = x_clip - x_hat_clip
-        delta_text_norm = delta_text / torch.linalg.norm(delta_text)
-        delta_image_norm = delta_image / torch.linalg.norm(delta_image)
-        similarity = torch.dot(delta_image_norm.squeeze(), delta_text_norm.squeeze())
-        
-    return similarity.item()
 
 
 def save_source_with_texture(obj_dir, output_obj_path):
@@ -176,6 +132,7 @@ def main():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
     models = ModelManager()
+    clip_models = ClipModelManager()
 
     print("\nPhase 1: Finding all valid objects to select from...")
     all_source_dirs = sorted([d for d in glob.glob(f'{SOURCE_DATA_DIR}/*') if os.path.isdir(d)])
@@ -288,7 +245,13 @@ def main():
 
                 save_source_with_texture(obj_dir, os.path.join(result_dir, 'source_mesh.obj'))
                 source_obj_path_wtexture = os.path.join(result_dir, 'source_mesh.obj')
-                score = evaluate_clip_similarity(models, source_obj_path_wtexture, edited_mesh_path, original_text, edited_prompt)
+                score = evaluate_clip_similarity(
+                    clip_models, 
+                    source_obj_path_wtexture, 
+                    edited_mesh_path, 
+                    original_text, 
+                    edited_prompt
+                )
                 
                 
                 shutil.copy(source_img_path, os.path.join(result_dir, 'source_image.jpg'))
@@ -320,6 +283,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # xvfb-run을 사용하여 headless 환경에서 실행해야 합니다.
-    # 예: xvfb-run --auto-servernum python run_batch_processing.py
+    # xvfb-run을 사용하여 headless 환경에서 실행해야됨
+    # xvfb-run --auto-servernum python run_batch_processing.py
     main()
